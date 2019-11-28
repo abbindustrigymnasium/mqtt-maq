@@ -76,12 +76,25 @@
                 client.disconnect();
                 document.getElementById("messages").innerHTML += '<span>Disconnected</span><br/>';
             }
+
+            function startCar() {
+                document.getElementById("on-off").onclick = stopCar();
+                document.getElementById("on-off").value = "Off";
+                document.getElementById("messages").innerHTML += '<span>250</span><br/>';
+                document.getElementById("on-off").style.box-shadow = rgb();
+            }
+
+            function stopCar() {
+                document.getElementById("on-off").onclick = startCar();
+                document.getElementById("on-off").value = "On";
+                document.getElementById("messages").innerHTML += '<span>0</span><br/>';
+            }
             </script>
             
 
     <style>
         body {
-            background-color: rgb(26, 0, 13);
+            background-color: rgb(23, 10, 16);
         }
 
         h1 {
@@ -95,18 +108,41 @@
 
         label {
             display: block;
-            font: 1rem 'Fira Sans', sans-serif;
+            font: 24px 'Fira Sans', sans-serif;
         }
 
         input,
         label {
-            margin: .4rem 0;
+            margin: 4px;
         }
 
         input {
             height: 32px;
             width: 400px;
             font-size: 24px;
+            color: azure;
+            background-color: rgb(46, 25, 35);
+            border: 2px solid rgb(93, 37, 84);
+            border-radius: 5px;
+            
+        }
+
+        #on-off {
+            background-color: rgb(146, 88, 116);
+            width: 404px;
+        }
+
+        #connect-button:hover, #disconnect-button:hover, #on-off:hover {
+            background-color: rgb(93, 37, 84);
+        }
+
+        #on-off:active {
+            background-color: rgb(46, 25, 35);
+        }
+
+        #connect-button, #disconnect-button {
+            background-color: rgb(146, 88, 116);
+            width: 196px;
         }
         </style>
     </head>
@@ -116,35 +152,35 @@
          <form id="connection-information-form">
             <div class="user">
                 <label for="username">Username</label>
-                <input id="username" typ="text" name="username" value=""><br>
+                <input id="username" placeholder="Enter username" typ="text" name="username" value="">
             </div>
 
             <div class="pass">
                 <label for="username">Password</label>
-                <input id="password" type="password" name="password" value=""><br>
+                <input id="password" placeholder="Enter password" type="password" name="password" value="">
             </div>
 
             <div class="host">
                 <label for="host">Host</label> 
-                <input id="host" type="text" name="host" value="maqiatto.com"><br>
+                <input id="host" placeholder="Enter IP address or URL" type="text" name="host" value="maqiatto.com">
             </div>
 
             <div class="port">
                 <label for="port">Port</label> 
-                <input id="port" type="text" name="port" value="8883"><br>
+                <input id="port" placeholder="####" type="text" name="port" value="8883">
             </div>
 
             <div class="topic">
                 <label for="topic">Topic</label> 
-                <input id="topic" type="text" name="topic" value="SR"><br><br>
+                <input id="topic" placeholder="Enter topic" type="text" name="topic" value="SR"><br>
             </div>
-            <input type="button" onclick="startConnect()" value="Connect">
-            <input type="button" onclick="startDisconnect()" value="Disconnect">
-<br><br>
-            <input id="newMessage" type="text" name="newMessage" value="">
-            <input type="button" onclick="onSend()" value="Send">
-          
-
+            <div>
+                <input id="connect-button" type="button" onclick="startConnect()" value="Connect">
+                <input id="disconnect-button" type="button" onclick="startDisconnect()" value="Disconnect"><br>
+            </div>
+            <div class="on-off-button">
+                <input id="on-off" type="button" onclick="startCar()" value="On")>
+            </div>
          </form>
          <div id="messages"></div>
       </div>
