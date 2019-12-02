@@ -1,11 +1,134 @@
 <!DOCTYPE html>
 <html>
-   <head>
-      <meta charset="utf-8">
-      <title>Ottaiqam</title>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <head>
+        <meta charset="utf-8">
+        <title>Ottaiqam</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
-      <script>
+        <script>
+            function build_graph(){
+                var lastDate = 0;
+                var data = []
+                var TICKINTERVAL = 86400000
+                let XAXISRANGE = 777600000
+                function getDayWiseTimeSeries(baseval, count, yrange) {
+                    var i = 0;
+                    while (i < count) {
+                        var x = baseval;
+                        var y = Math.floor(Math.random() * (yrange.max - yrange.min + 1)) + yrange.min;
+
+                        data.push({
+                            x, y
+                        });
+                        lastDate = baseval
+                        baseval += TICKINTERVAL;
+                        i++;
+                    }
+                }
+
+                getDayWiseTimeSeries(new Date('11 Feb 2017 GMT').getTime(), 10, {
+                    min: 10,
+                    max: 90
+                })
+
+                function getNewSeries(baseval, yrange) {
+                    var newDate = baseval + TICKINTERVAL;
+                    lastDate = newDate
+
+                    for(var i = 0; i< data.length - 10; i++) {
+                        // IMPORTANT
+                        // we reset the x and y of the data which is out of drawing area
+                        // to prevent memory leaks
+                        data[i].x = newDate - XAXISRANGE - TICKINTERVAL
+                        data[i].y = 0
+                    }
+                    
+                    data.push({
+                        x: newDate,
+                        y: Math.floor(Math.random() * (yrange.max - yrange.min + 1)) + yrange.min
+                    })
+                
+                }
+
+                function resetData(){
+                    // Alternatively, you can also reset the data at certain intervals to prevent creating a huge series 
+                    data = data.slice(data.length - 10, data.length);
+                }
+
+                var options = {
+                    chart: {
+                        height: 350,
+                        type: 'line',
+                        animations: {
+                            enabled: true,
+                            easing: 'linear',
+                            dynamicAnimation: {
+                                speed: 1000
+                            }
+                        },
+                        toolbar: {
+                            show: false
+                        },
+                        zoom: {
+                            enabled: false
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    stroke: {
+                        curve: 'smooth'
+                    },
+                    series: [{
+                        data: data
+                    }],
+                    title: {
+                        text: 'Dynamic Updating Chart',
+                        align: 'left'
+                    },
+                    markers: {
+                        size: 0
+                    },
+                    xaxis: {
+                        type: 'datetime',
+                        range: XAXISRANGE,
+                    },
+                    yaxis: {
+                        max: 100
+                    },
+                    legend: {
+                        show: false
+                    },
+                }
+
+                var chart = new ApexCharts(
+                    document.querySelector("#chart"),
+                    options
+                );
+
+                chart.render();
+
+                window.setInterval(function () {
+                    getNewSeries(lastDate, {
+                        min: 10,
+                        max: 90
+                    })
+                    chart.updateSeries([{
+                        data: data
+                    }])
+                }, 1000)
+            }
+
+            function ani_move_up(id, classname) {
+                document.getElementById(id).className = classname;
+            }
+
+            function autoScroll() {
+                var logbox = document.getElementById("messages");
+                logbox.scrollTop = logbox.scrollHeight;
+            }
+
             function startConnect() {
                 // Generate a random client ID
                 clientID = "clientID_" + parseInt(Math.random() * 100);
@@ -29,33 +152,42 @@
                     onSuccess: onConnect,
                     onFailure: onFail
                                });
+                autoScroll();
             }
+
             function onFail() {
                 document.getElementById("messages").innerHTML += '<span>ERROR: Connection to: ' + host + ' on port: ' + port + ' failed.</span><br/>'
-            }  
-           let topic="brian.nguyen@abbindustrigymnasium.se/";
+                autoScroll();
+            } 
+
+            let topic="brian.nguyen@abbindustrigymnasium.se/";
             // Called when the client connects
             function onConnect() {
                 // Fetch the MQTT topic from the form
                 topic +=document.getElementById("topic").value;
-            console.log(topic);
+                console.log(topic);
                 // Print output for the user in the messages div
                 document.getElementById("messages").innerHTML += '<span>Subscribing to: ' + topic + '</span><br/>';
             
                 // Subscribe to the requested topic
-                 client.subscribe(topic);
-                  message= new Paho.MQTT.Message("Hello World!");
-                  message.destinationName=topic;
-                  client.send(message);
+                client.subscribe(topic);
+                message= new Paho.MQTT.Message("Hello World!");
+                message.destinationName=topic;
+                client.send(message);
+                ani_move_up("wrapper", "move_up");
+                startCar();
+                build_graph();
+                autoScroll();
             }
             function onSend() {
                 // Fetch the MQTT topic from the form
                 // Print output for the user in the messages div
-               let message= document.getElementById("newMessage").value;
-            console.log(message);
-                  message= new Paho.MQTT.Message(message);
-                  message.destinationName=topic;
-                  client.send(message);
+                let message= document.getElementById("newMessage").value;
+                    console.log(message);
+                    message= new Paho.MQTT.Message(message);
+                    message.destinationName=topic;
+                    client.send(message);
+                    autoScroll();
             }
             // Called when the client loses its connection
             function onConnectionLost(responseObject) {
@@ -63,52 +195,53 @@
                 if (responseObject.errorCode !== 0) {
                     document.getElementById("messages").innerHTML += '<span>ERROR: ' + responseObject.errorMessage + '</span><br/>';
                 }
+                ani_move_up("wrapper", "move_down");
+                autoScroll();
             }
             
             // Called when a message arrives
             function onMessageArrived(message) {
                 console.log("onMessageArrived: " + message.payloadString);
                 document.getElementById("messages").innerHTML += '<span>Topic: ' + message.destinationName + '  | ' + message.payloadString + '</span><br/>';
+                autoScroll();
             }
             
             // Called when the disconnection button is pressed
             function startDisconnect() {
                 client.disconnect();
                 document.getElementById("messages").innerHTML += '<span>Disconnected</span><br/>';
+                ani_move_up("wrapper", "move_down");
+                autoScroll();
             }
 
             function startCar() {
-                document.getElementById("on-off").onclick = stopCar();
-                document.getElementById("on-off").value = "Off";
-                document.getElementById("messages").innerHTML += '<span>250</span><br/>';
-                document.getElementById("on-off").style.box-shadow = rgb();
+                document.getElementById("messages").innerHTML += '<span>{joe: 250, mama: 250}</span><br/>';
+                autoScroll();
             }
 
             function stopCar() {
-                document.getElementById("on-off").onclick = startCar();
-                document.getElementById("on-off").value = "On";
-                document.getElementById("messages").innerHTML += '<span>0</span><br/>';
+                document.getElementById("messages").innerHTML += '<span>{joe: 0, mama: 0}</span><br/>';
+                autoScroll();
             }
             </script>
             
 
     <style>
         body {
+            color: azure;
+            font-family: "Trebuchet MS", Helvetica, sans-serif;
             background-color: rgb(23, 10, 16);
+            overflow: hidden;
         }
 
         h1 {
-            color: azure;
             text-align: center;
             font-size: 72px;
-        }
-        .user,.pass,.host,.port,.topic {
-            color: azure;
         }
 
         label {
             display: block;
-            font: 24px 'Fira Sans', sans-serif;
+            font-size: 24px
         }
 
         input,
@@ -127,6 +260,41 @@
             
         }
 
+        #wrapper {
+            position: relative;
+            left: 25%;
+            background-color:  rgb(56, 38, 53);
+            height: 820px;
+            width: 50%;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        #new-wrapper {
+            position: relative;
+            top: 92px;
+            background-color:  rgb(56, 38, 53);
+            height: 820px;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        .move_up {
+            animation-timing-function: ease;
+            animation-duration: 1.5s;
+            animation-name: move-up;
+            animation-iteration-count: 1;
+            animation-fill-mode: forwards;
+        }
+
+        .move_down {
+            animation-timing-function: ease;
+            animation-duration: 1.5s;
+            animation-name: move-down;
+            animation-iteration-count: 1;
+            animation-fill-mode: forwards;
+        }
+
         #on-off {
             background-color: rgb(146, 88, 116);
             width: 404px;
@@ -142,47 +310,159 @@
 
         #connect-button, #disconnect-button {
             background-color: rgb(146, 88, 116);
-            width: 196px;
+            width: 404px;
+        }
+
+        #messages {
+            text-align: left;
+            position: relative;
+            left: 29%;
+            height: 200px;
+            width: 42%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            font-family: "Lucida Console", Monaco, monospace;
+            background-color: rgb(46, 25, 35);
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 6px;
+            border-radius: 6px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            width: 6px;
+            border-radius: 6px;
+            background-color: rgb(19, 12, 15);
+        }
+
+        .side-boxes {
+            position: absolute;
+            width: 100%;
+            left: 80px;
+        }
+
+        .car1-wrapper {
+            position: absolute;
+            background-color:  rgb(56, 38, 53);
+            width: 20%;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        .car2-wrapper {
+            position: absolute;
+            top: 270px;
+            background-color:  rgb(56, 38, 53);
+            width: 20%;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        h2 {
+            font-size: 32px;
+        }
+
+        p {
+            font-size: 12px;
+        }
+
+        #unit {
+            font-size: 20px;
+        }
+
+        #current-speed1, #current-speed2 {
+            font-size: 72px;
+        }
+
+        #goal-speed1, #goal-speed2 {
+            font-size: 72px;
+        }
+
+        @keyframes move-up {
+            from {
+                position: relative;
+                bottom: 0px;
+            }
+
+            to {
+                position: relative;
+                bottom: 938px;
+            }
+        }
+
+        @keyframes move-down {
+            to {
+                position: relative;
+                bottom: 0px;
+            }
+
+            from {
+                position: relative;
+                bottom: 938px;
+            }
         }
         </style>
     </head>
-   <body>
-      <div class="wrapper">
-         <h1>Ottaiqam</h1>
-         <form id="connection-information-form">
-            <div class="user">
-                <label for="username">Username</label>
-                <input id="username" placeholder="Enter username" typ="text" name="username" value="">
+
+    <body>
+        <div class="side-boxes">
+            <div class="car1-wrapper">
+                <h2>Joe</h2><br>
+                <span id="current-speed1">
+                    0<span id="unit">cm/s</span>
+                </span>
+                <p>Current Speed</p><br>
             </div>
 
-            <div class="pass">
-                <label for="username">Password</label>
-                <input id="password" placeholder="Enter password" type="password" name="password" value="">
+            <div class="car2-wrapper">
+                <h2>Mama</h2><br>
+                <span id="current-speed2">
+                    0<span id="unit">cm/s</span>
+                </span>
+                <p>Current Speed</p><br>
             </div>
+        </div>
 
-            <div class="host">
-                <label for="host">Host</label> 
-                <input id="host" placeholder="Enter IP address or URL" type="text" name="host" value="maqiatto.com">
-            </div>
+        <div class="" id="wrapper">
+            <h1>Ottaiqam</h1>
+            <form id="connection-information-form">
+                <div class="user">
+                    <label for="username">Username</label>
+                    <input id="username" placeholder="Enter username" typ="text" name="username" value="brian.nguyen@abbindustrigymnasium.se">
+                </div>
 
-            <div class="port">
-                <label for="port">Port</label> 
-                <input id="port" placeholder="####" type="text" name="port" value="8883">
-            </div>
+                <div class="pass">
+                    <label for="username">Password</label>
+                    <input id="password" placeholder="Enter password" type="password" name="password" value="7C8NXTmb&rsXBsnw5V">
+                </div>
 
-            <div class="topic">
-                <label for="topic">Topic</label> 
-                <input id="topic" placeholder="Enter topic" type="text" name="topic" value="SR"><br>
+                <div class="host">
+                    <label for="host">Host</label> 
+                    <input id="host" placeholder="Enter IP address or URL" type="text" name="host" value="maqiatto.com">
+                </div>
+
+                <div class="port">
+                    <label for="port">Port</label> 
+                    <input id="port" placeholder="####" type="text" name="port" value="8883">
+                </div>
+
+                <div class="topic">
+                    <label for="topic">Topic</label> 
+                    <input id="topic" placeholder="Enter topic" type="text" name="topic" value="SR"><br>
+                </div>
+                <div>
+                    <input id="connect-button" type="button" onclick="startConnect()" value="Connect">
+                </div>
+            </form><br>
+            <div id="messages"></div>
+            <div id="new-wrapper">
+                <h1>Chart</h1>
+                <div id="chart"></div>
+                <div>
+                    <input id="disconnect-button" type="button" onclick="startDisconnect()" value="Disconnect">
+                </div>
             </div>
-            <div>
-                <input id="connect-button" type="button" onclick="startConnect()" value="Connect">
-                <input id="disconnect-button" type="button" onclick="startDisconnect()" value="Disconnect"><br>
-            </div>
-            <div class="on-off-button">
-                <input id="on-off" type="button" onclick="startCar()" value="On")>
-            </div>
-         </form>
-         <div id="messages"></div>
-      </div>
-   </body>
+        </div>
+    </body>
 </html>
