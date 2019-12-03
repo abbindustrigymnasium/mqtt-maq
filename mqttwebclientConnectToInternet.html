@@ -6,100 +6,62 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
         <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
-        <script>
-            function build_graph(){
-                var lastDate = 0;
-                var data = []
-                var TICKINTERVAL = 86400000
-                let XAXISRANGE = 777600000
-                function getDayWiseTimeSeries(baseval, count, yrange) {
-                    var i = 0;
-                    while (i < count) {
-                        var x = baseval;
-                        var y = Math.floor(Math.random() * (yrange.max - yrange.min + 1)) + yrange.min;
+        <script>    
+            var actualSpeed = []
+            var setSpeed = []
 
-                        data.push({
-                            x, y
-                        });
-                        lastDate = baseval
-                        baseval += TICKINTERVAL;
-                        i++;
-                    }
-                }
-
-                getDayWiseTimeSeries(new Date('11 Feb 2017 GMT').getTime(), 10, {
-                    min: 10,
-                    max: 90
-                })
-
-                function getNewSeries(baseval, yrange) {
-                    var newDate = baseval + TICKINTERVAL;
-                    lastDate = newDate
-
-                    for(var i = 0; i< data.length - 10; i++) {
-                        // IMPORTANT
-                        // we reset the x and y of the data which is out of drawing area
-                        // to prevent memory leaks
-                        data[i].x = newDate - XAXISRANGE - TICKINTERVAL
-                        data[i].y = 0
-                    }
-                    
-                    data.push({
-                        x: newDate,
-                        y: Math.floor(Math.random() * (yrange.max - yrange.min + 1)) + yrange.min
-                    })
-                
-                }
-
-                function resetData(){
-                    // Alternatively, you can also reset the data at certain intervals to prevent creating a huge series 
-                    data = data.slice(data.length - 10, data.length);
-                }
-
+            window.onload = function() {
                 var options = {
                     chart: {
                         height: 350,
                         type: 'line',
-                        animations: {
-                            enabled: true,
-                            easing: 'linear',
-                            dynamicAnimation: {
-                                speed: 1000
-                            }
-                        },
+                        foreColor: '#f0ffff',
                         toolbar: {
                             show: false
-                        },
-                        zoom: {
-                            enabled: false
                         }
                     },
+                    colors: ['#77B6EA', '#545454'],
                     dataLabels: {
-                        enabled: false
+                        enabled: false,
                     },
                     stroke: {
-                        curve: 'smooth'
+                        curve: 'straight'
                     },
                     series: [{
-                        data: data
-                    }],
+                            name: "Actual Speed",
+                            data: actualSpeed
+                        },
+                        {
+                            name: "Set Speed",
+                            data: setSpeed
+                        }
+                    ],
                     title: {
-                        text: 'Dynamic Updating Chart',
+                        text: 'cm/s',
                         align: 'left'
                     },
-                    markers: {
-                        size: 0
+                    grid: {
+                        borderColor: '#e7e7e7'
                     },
                     xaxis: {
-                        type: 'datetime',
-                        range: XAXISRANGE,
+                        title: {
+                            text: 's'
+                        }
                     },
                     yaxis: {
-                        max: 100
+                        title: {
+                            text: 'cm'
+                        },
+                        min: 0,
+                        max: 50
                     },
                     legend: {
-                        show: false
-                    },
+                        position: 'top',
+                        horizontalAlign: 'right',
+                        floating: true,
+                        offsetY: -25,
+                        offsetX: -5
+                    }
                 }
 
                 var chart = new ApexCharts(
@@ -108,16 +70,6 @@
                 );
 
                 chart.render();
-
-                window.setInterval(function () {
-                    getNewSeries(lastDate, {
-                        min: 10,
-                        max: 90
-                    })
-                    chart.updateSeries([{
-                        data: data
-                    }])
-                }, 1000)
             }
 
             function ani_move_up(id, classname) {
@@ -165,27 +117,26 @@
             function onConnect() {
                 // Fetch the MQTT topic from the form
                 topic +=document.getElementById("topic").value;
-                console.log(topic);
+                console.log("wtf bro");
                 // Print output for the user in the messages div
                 document.getElementById("messages").innerHTML += '<span>Subscribing to: ' + topic + '</span><br/>';
             
                 // Subscribe to the requested topic
                 client.subscribe(topic);
-                message= new Paho.MQTT.Message("Hello World!");
-                message.destinationName=topic;
+                message = new Paho.MQTT.Message("Subscribed!");
+                message.destinationName = topic;
                 client.send(message);
                 ani_move_up("wrapper", "move_up");
                 startCar();
-                build_graph();
                 autoScroll();
             }
             function onSend() {
                 // Fetch the MQTT topic from the form
                 // Print output for the user in the messages div
-                let message= document.getElementById("newMessage").value;
+                let message = document.getElementById("messages").value;
                     console.log(message);
                     message= new Paho.MQTT.Message(message);
-                    message.destinationName=topic;
+                    message.destinationName = topic;
                     client.send(message);
                     autoScroll();
             }
@@ -195,6 +146,9 @@
                 if (responseObject.errorCode !== 0) {
                     document.getElementById("messages").innerHTML += '<span>ERROR: ' + responseObject.errorMessage + '</span><br/>';
                 }
+                speed = new Paho.MQTT.Message("h0");
+                speed.destinationName = topic;
+                client.send(speed);
                 ani_move_up("wrapper", "move_down");
                 autoScroll();
             }
@@ -203,6 +157,11 @@
             function onMessageArrived(message) {
                 console.log("onMessageArrived: " + message.payloadString);
                 document.getElementById("messages").innerHTML += '<span>Topic: ' + message.destinationName + '  | ' + message.payloadString + '</span><br/>';
+                if(message.payloadString.charAt(0) == "h") {
+                    var velo = message.payloadString.slice(0, 0);
+                    console.log(velo);
+                    actualSpeed.push(velo.toInt());
+                }
                 autoScroll();
             }
             
@@ -215,15 +174,27 @@
             }
 
             function startCar() {
-                document.getElementById("messages").innerHTML += '<span>{joe: 250, mama: 250}</span><br/>';
+                document.getElementById("current-speed1").innerHTML = '0';
+                speed= new Paho.MQTT.Message("h0");
+                speed.destinationName = topic;
+                client.send(speed);
                 autoScroll();
             }
 
-            function stopCar() {
-                document.getElementById("messages").innerHTML += '<span>{joe: 0, mama: 0}</span><br/>';
-                autoScroll();
+            function updateValue() {
+                document.getElementById("current-speed1").innerHTML = document.getElementById("value-slider").value;
+                let speed = "h" + document.getElementById("value-slider").value;
+                console.log(speed);
+                speed= new Paho.MQTT.Message(speed);
+                speed.destinationName = topic;
+                client.send(speed);
+                setSpeed.push(speed.toInt());
             }
-            </script>
+
+            function updateChart() {
+                chart.updateOptions()
+            }
+             </script>
             
 
     <style>
@@ -300,17 +271,26 @@
             width: 404px;
         }
 
-        #connect-button:hover, #disconnect-button:hover, #on-off:hover {
+        #connect-button:hover, #disconnect-button:hover, #update-chart:hover {
             background-color: rgb(93, 37, 84);
         }
 
-        #on-off:active {
-            background-color: rgb(46, 25, 35);
-        }
-
-        #connect-button, #disconnect-button {
+        #connect-button, #disconnect-button, #update-chart {
             background-color: rgb(146, 88, 116);
             width: 404px;
+            cursor: pointer;
+        }
+
+        #disconnect-button {
+            position: absolute;
+            right: 15px;
+            bottom: 15px;
+        }
+        
+        #update-chart {
+            position: absolute;
+            left: 15px;
+            bottom: 15px;
         }
 
         #messages {
@@ -379,6 +359,50 @@
             font-size: 72px;
         }
 
+        #left-side {
+            position:absolute;
+            left:0%;
+            width: 25%;
+            height: 365px;
+            text-align: center;
+        }
+
+        #right-side {
+            position:absolute;
+            right:0%;
+            width: 75%;            
+        }
+
+        #value-slider {
+            -webkit-appearance: none;
+            position: relative;
+            top: 160px;
+            right: 25%;
+            transform: rotate(270deg);
+            background: rgb(46, 25, 35);
+            transition: opacity .2s;
+            outline: none;
+            width: 365px;
+            height: 15px;
+            opacity: 0.7;
+            border-radius: 15px;
+            border: none;
+        }
+
+        #value-slider:hover {
+            opacity: 1;
+        }
+
+        #value-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: rgb(146, 88, 116);
+            cursor: pointer;
+            border-radius: 20px
+        }
+
         @keyframes move-up {
             from {
                 position: relative;
@@ -409,17 +433,13 @@
         <div class="side-boxes">
             <div class="car1-wrapper">
                 <h2>Joe</h2><br>
-                <span id="current-speed1">
-                    0<span id="unit">cm/s</span>
-                </span>
+                <span id="current-speed1">0</span><span id="unit">cm/s</span>
                 <p>Current Speed</p><br>
             </div>
 
             <div class="car2-wrapper">
                 <h2>Mama</h2><br>
-                <span id="current-speed2">
-                    0<span id="unit">cm/s</span>
-                </span>
+                <span id="current-speed2">0</span><span id="unit">cm/s</span>
                 <p>Current Speed</p><br>
             </div>
         </div>
@@ -458,9 +478,15 @@
             <div id="messages"></div>
             <div id="new-wrapper">
                 <h1>Chart</h1>
-                <div id="chart"></div>
+                <div id="right-side">
+                    <div id="chart"></div>
+                </div>
+                <div id="left-side">
+                    <input id="value-slider" orient="vertical" type="range" oninput="updateValue()" value="0" min="0" max="50">
+                </div>
                 <div>
                     <input id="disconnect-button" type="button" onclick="startDisconnect()" value="Disconnect">
+                    <input id="update-chart" type="button" onclick="updateChart()" value="Update">
                 </div>
             </div>
         </div>
