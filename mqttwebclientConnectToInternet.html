@@ -6,54 +6,54 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
         <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
-        <script>    
-            var actualSpeed = []
+        <script>
             var setSpeed = []
+            var actualSpeed1 = []
+            var actualSpeed2 = []
 
-            window.onload = function() {
+            function build_chart() {
                 var options = {
                     chart: {
                         height: 350,
-                        type: 'line',
-                        foreColor: '#f0ffff',
-                        toolbar: {
-                            show: false
-                        }
+                        type: 'line'
                     },
-                    colors: ['#77B6EA', '#545454'],
-                    dataLabels: {
-                        enabled: false,
-                    },
+                    colors: ['#77B6EA', '#545454', '#F5B5E4'],
                     stroke: {
                         curve: 'straight'
                     },
                     series: [{
-                            name: "Actual Speed",
-                            data: actualSpeed
+                            name: "Joe",
+                            data: actualSpeed1
                         },
                         {
-                            name: "Set Speed",
+                            name: "Mama",
+                            data: actualSpeed2
+                        },
+                        {
+                            name: "Set",
                             data: setSpeed
                         }
                     ],
                     title: {
-                        text: 'cm/s',
+                        text: 'Average High & Low Temperature',
                         align: 'left'
                     },
                     grid: {
-                        borderColor: '#e7e7e7'
+                        borderColor: '#e7e7e7',
+                        row: {
+                            colors: ['#f3f3f3', 'transparent'], // takes an array which will be repeated on columns
+                            opacity: 0.5
+                        },
                     },
-                    xaxis: {
-                        title: {
-                            text: 's'
-                        }
+                    markers: {
+                        size: 6
                     },
                     yaxis: {
                         title: {
-                            text: 'cm'
+                            text: 'cm/s'
                         },
                         min: 0,
-                        max: 50
+                        max: 80
                     },
                     legend: {
                         position: 'top',
@@ -70,6 +70,22 @@
                 );
 
                 chart.render();
+            }
+
+            function update_chart() {
+                chart.destroy();
+                chart.updateSeries([{
+                        name: "Joe",
+                        data: actualSpeed1
+                    },
+                    {
+                        name: "Mama",
+                        data: actualSpeed2
+                    },
+                    {
+                        name: "Set",
+                        data: setSpeed
+                }])
             }
 
             function ani_move_up(id, classname) {
@@ -104,6 +120,8 @@
                     onSuccess: onConnect,
                     onFailure: onFail
                                });
+
+                build_chart();
                 autoScroll();
             }
 
@@ -158,9 +176,9 @@
                 console.log("onMessageArrived: " + message.payloadString);
                 document.getElementById("messages").innerHTML += '<span>Topic: ' + message.destinationName + '  | ' + message.payloadString + '</span><br/>';
                 if(message.payloadString.charAt(0) == "h") {
-                    var velo = message.payloadString.slice(0, 0);
-                    console.log(velo);
-                    actualSpeed.push(velo.toInt());
+                    velo = message.payloadString.substr(1);
+                    actualSpeed1.push(parseInt(velo));
+                    console.log(actualSpeed1);
                 }
                 autoScroll();
             }
@@ -175,7 +193,7 @@
 
             function startCar() {
                 document.getElementById("current-speed1").innerHTML = '0';
-                speed= new Paho.MQTT.Message("h0");
+                speed = new Paho.MQTT.Message("h0");
                 speed.destinationName = topic;
                 client.send(speed);
                 autoScroll();
@@ -184,15 +202,11 @@
             function updateValue() {
                 document.getElementById("current-speed1").innerHTML = document.getElementById("value-slider").value;
                 let speed = "h" + document.getElementById("value-slider").value;
-                console.log(speed);
-                speed= new Paho.MQTT.Message(speed);
+                set = parseInt(speed.substr(1));
+                setSpeed.push(set);
+                speed = new Paho.MQTT.Message(speed);
                 speed.destinationName = topic;
                 client.send(speed);
-                setSpeed.push(speed.toInt());
-            }
-
-            function updateChart() {
-                chart.updateOptions()
             }
              </script>
             
@@ -486,7 +500,7 @@
                 </div>
                 <div>
                     <input id="disconnect-button" type="button" onclick="startDisconnect()" value="Disconnect">
-                    <input id="update-chart" type="button" onclick="updateChart()" value="Update">
+                    <input id="update-chart" type="button" onclick="build_chart()" value="Update">
                 </div>
             </div>
         </div>
