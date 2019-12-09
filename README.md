@@ -7,7 +7,7 @@ Länken till webbsidan(kan ej ansluta av en konstig anledning): https://s3.amazo
 
 # Hur fungerar webbsidan?
 ## Första slide
-![okej](https://imgur.com/84aQAtl)
+https://imgur.com/84aQAtl
 
 1. Username för MQTT
 2. Password
@@ -19,7 +19,7 @@ Länken till webbsidan(kan ej ansluta av en konstig anledning): https://s3.amazo
 
 ## Andra Slide
 
-![hej](https://imgur.com/AyxFsVX)
+https://imgur.com/AyxFsVX
 
 1. Hastigheten för första bilen
 2. Hastigheten för andra bilen
