@@ -11,13 +11,17 @@
             var actualSpeed1 = []
             var actualSpeed2 = []
 
+            // Build the chart, happens when the button "Build Chart" is pressed. The chart has 3 series,
+            // two for the actual speeds from both cars and one for set speed. Stop the car
+            // when the chart has been built.
             function build_chart() {
                 var options = {
                     chart: {
                         height: 350,
-                        type: 'line'
+                        type: 'line',
+                        foreColor: '#e7e7e7'
                     },
-                    colors: ['#77B6EA', '#545454', '#F5B5E4'],
+                    colors: ['#77B6EA', '#FFFF33', '#545454'],
                     stroke: {
                         curve: 'straight'
                     },
@@ -35,18 +39,15 @@
                         }
                     ],
                     title: {
-                        text: 'Average High & Low Temperature',
+                        text: 'Set, Actual Speed',
                         align: 'left'
                     },
                     grid: {
-                        borderColor: '#e7e7e7',
-                        row: {
-                            colors: ['#f3f3f3', 'transparent'], // takes an array which will be repeated on columns
-                            opacity: 0.5
-                        },
+                        borderColor: '#006666',
+                        opacity: 0.1
                     },
                     markers: {
-                        size: 6
+                        size: 4
                     },
                     yaxis: {
                         title: {
@@ -70,87 +71,78 @@
                 );
 
                 chart.render();
+
+                speed = new Paho.MQTT.Message("h0");
+                speed.destinationName = topic;
+                client.send(speed);
             }
 
-            function update_chart() {
-                chart.destroy();
-                chart.updateSeries([{
-                        name: "Joe",
-                        data: actualSpeed1
-                    },
-                    {
-                        name: "Mama",
-                        data: actualSpeed2
-                    },
-                    {
-                        name: "Set",
-                        data: setSpeed
-                }])
-            }
-
-            function ani_move_up(id, classname) {
+            // A function to call on an animation.
+            function animate(id, classname) {
                 document.getElementById(id).className = classname;
             }
 
+            // Automatically scroll to the bottom in the log
             function autoScroll() {
                 var logbox = document.getElementById("messages");
                 logbox.scrollTop = logbox.scrollHeight;
             }
 
+            // Connects using the values from the input boxes. 
             function startConnect() {
-                // Generate a random client ID
+                
                 clientID = "clientID_" + parseInt(Math.random() * 100);
             
-                // Fetch the hostname/IP address and port number from the form
+                
                 username = document.getElementById("username").value;
                 password = document.getElementById("password").value;
                 host = document.getElementById("host").value;
                 port = document.getElementById("port").value;
             
-                // Print output for the user in the messages div
+                
                 document.getElementById("messages").innerHTML += '<span>Connecting to: ' + host + ' on port: ' + port + '</span><br/>';
                 document.getElementById("messages").innerHTML += '<span>Using the following client value: ' + clientID + '</span><br/>';
-              // Initialize new Paho client connection
+              
                 client = new Paho.MQTT.Client(host, Number(port), clientID);
-                // Set callback handlers
+                
                 client.onConnectionLost = onConnectionLost;
                 client.onMessageArrived = onMessageArrived;
-            
+                
+                // Run the function onConnect() if the connection is successfull. Otherwise go to onFail()
                 client.connect({userName : username,password : password,
                     onSuccess: onConnect,
                     onFailure: onFail
                                });
-
-                build_chart();
                 autoScroll();
             }
 
+            // Send the message that it did not connect
             function onFail() {
                 document.getElementById("messages").innerHTML += '<span>ERROR: Connection to: ' + host + ' on port: ' + port + ' failed.</span><br/>'
                 autoScroll();
-            } 
-
-            let topic="brian.nguyen@abbindustrigymnasium.se/";
-            // Called when the client connects
+            }
+            
+            // Connect and subscribe to the username and topic. Call all animations and start the cars. 
             function onConnect() {
-                // Fetch the MQTT topic from the form
-                topic +=document.getElementById("topic").value;
-                console.log("wtf bro");
-                // Print output for the user in the messages div
+                
+                topic = document.getElementById("username").value+ "/" + document.getElementById("topic").value;
+                
                 document.getElementById("messages").innerHTML += '<span>Subscribing to: ' + topic + '</span><br/>';
             
-                // Subscribe to the requested topic
                 client.subscribe(topic);
                 message = new Paho.MQTT.Message("Subscribed!");
                 message.destinationName = topic;
                 client.send(message);
-                ani_move_up("wrapper", "move_up");
+                animate("wrapper", "move_up");
+                animate("car1-wrapper", "move_right");
+                animate("car2-wrapper", "move_right");
+                animate("set-wrapper", "move_right");
                 startCar();
                 autoScroll();
             }
+
+            // Publish messages to the topic
             function onSend() {
-                // Fetch the MQTT topic from the form
-                // Print output for the user in the messages div
                 let message = document.getElementById("messages").value;
                     console.log(message);
                     message= new Paho.MQTT.Message(message);
@@ -158,39 +150,59 @@
                     client.send(message);
                     autoScroll();
             }
-            // Called when the client loses its connection
+
+            // Send message that the connection has been lost. Go back to main panel.
             function onConnectionLost(responseObject) {
                 document.getElementById("messages").innerHTML += '<span>ERROR: Connection lost</span><br/>';
                 if (responseObject.errorCode !== 0) {
                     document.getElementById("messages").innerHTML += '<span>ERROR: ' + responseObject.errorMessage + '</span><br/>';
                 }
-                speed = new Paho.MQTT.Message("h0");
-                speed.destinationName = topic;
-                client.send(speed);
-                ani_move_up("wrapper", "move_down");
+                animate("wrapper", "move_down");
+                animate("car1-wrapper", "move_left");
+                animate("car2-wrapper", "move_left");
+                animate("set-wrapper", "move_left");
                 autoScroll();
             }
             
-            // Called when a message arrives
+            // Recieve messages and output them to the log.
             function onMessageArrived(message) {
                 console.log("onMessageArrived: " + message.payloadString);
                 document.getElementById("messages").innerHTML += '<span>Topic: ' + message.destinationName + '  | ' + message.payloadString + '</span><br/>';
-                if(message.payloadString.charAt(0) == "h") {
-                    velo = message.payloadString.substr(1);
-                    actualSpeed1.push(parseInt(velo));
-                    console.log(actualSpeed1);
+                
+                // The cars will be sending a prefix before its speed. The first car syntax is "a" and second is "b". 
+                // Push the values into either the list "actualSpeed1" or "actualSpeed2" depending on which prefix it has.
+                if(message.payloadString.charAt(0) == "a") {
+                    a_velo = message.payloadString.substr(1);
+                    actualSpeed1.push(parseInt(a_velo));
+                    document.getElementById("current-speed1").innerHTML = a_velo;
+                } else if(message.payloadString.charAt(0) == "b") {
+                    b_velo = message.payloadString.substr(1);
+                    actualSpeed2.push(parseInt(b_velo));
+                    document.getElementById("current-speed2").innerHTML = b_velo;
                 }
+
+                // Push the set speed to the list "setSpeed" every time a message has been recieved.
+                let speed = document.getElementById("value-slider").value;
+                setSpeed.push(parseInt(speed));
+
                 autoScroll();
             }
             
-            // Called when the disconnection button is pressed
+            // Stops the car and disconnects when the button "Disconnect" is pressed. 
             function startDisconnect() {
+                speed = new Paho.MQTT.Message("h0");
+                document.getElementById("value-slider").value = 0;
+                speed.destinationName = topic;
+                client.send(speed);  
                 client.disconnect();
                 document.getElementById("messages").innerHTML += '<span>Disconnected</span><br/>';
-                ani_move_up("wrapper", "move_down");
+                setSpeed = []
+                actualSpeed1 = []
+                actualSpeed2 = []
                 autoScroll();
             }
 
+            // Starts the car and set speed to 0
             function startCar() {
                 document.getElementById("current-speed1").innerHTML = '0';
                 speed = new Paho.MQTT.Message("h0");
@@ -199,18 +211,17 @@
                 autoScroll();
             }
 
+            // Update the set speed value from the slider with the prefix "h" to indicate that this is a requested speed
             function updateValue() {
-                document.getElementById("current-speed1").innerHTML = document.getElementById("value-slider").value;
                 let speed = "h" + document.getElementById("value-slider").value;
                 set = parseInt(speed.substr(1));
-                setSpeed.push(set);
                 speed = new Paho.MQTT.Message(speed);
                 speed.destinationName = topic;
                 client.send(speed);
+                document.getElementById("set-speed").innerHTML = document.getElementById("value-slider").value;
             }
-             </script>
+        </script>
             
-
     <style>
         body {
             color: azure;
@@ -249,7 +260,7 @@
             position: relative;
             left: 25%;
             background-color:  rgb(56, 38, 53);
-            height: 820px;
+            height: 770px;
             width: 50%;
             text-align: center;
             border-radius: 2px;
@@ -257,9 +268,9 @@
 
         #new-wrapper {
             position: relative;
-            top: 92px;
+            top: 132px;
             background-color:  rgb(56, 38, 53);
-            height: 820px;
+            height: 770px;
             text-align: center;
             border-radius: 2px;
         }
@@ -276,6 +287,22 @@
             animation-timing-function: ease;
             animation-duration: 1.5s;
             animation-name: move-down;
+            animation-iteration-count: 1;
+            animation-fill-mode: forwards;
+        }
+
+        .move_right {
+            animation-timing-function: ease;
+            animation-duration: 1.5s;
+            animation-name: move-right;
+            animation-iteration-count: 1;
+            animation-fill-mode: forwards;
+        }
+
+        .move_left {
+            animation-timing-function: ease;
+            animation-duration: 1.5s;
+            animation-name: move-left;
             animation-iteration-count: 1;
             animation-fill-mode: forwards;
         }
@@ -311,7 +338,7 @@
             text-align: left;
             position: relative;
             left: 29%;
-            height: 200px;
+            height: 160px;
             width: 42%;
             overflow-y: auto;
             overflow-x: hidden;
@@ -336,17 +363,29 @@
             left: 80px;
         }
 
-        .car1-wrapper {
+        #car1-wrapper {
             position: absolute;
+            left: -500px;
             background-color:  rgb(56, 38, 53);
             width: 20%;
             text-align: center;
             border-radius: 2px;
         }
 
-        .car2-wrapper {
+        #car2-wrapper {
             position: absolute;
             top: 270px;
+            left: -500px;
+            background-color:  rgb(56, 38, 53);
+            width: 20%;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        #set-wrapper {
+            position: absolute;
+            top: 540px;
+            left: -500px;
             background-color:  rgb(56, 38, 53);
             width: 20%;
             text-align: center;
@@ -365,7 +404,7 @@
             font-size: 20px;
         }
 
-        #current-speed1, #current-speed2 {
+        #current-speed1, #current-speed2, #set-speed {
             font-size: 72px;
         }
 
@@ -440,21 +479,51 @@
                 bottom: 938px;
             }
         }
+
+        @keyframes move-right {
+            from {
+                position: absolute;
+                left: -500px;
+            }
+
+            to {
+                position: absolute;
+                left: 0px;
+            }
+        }
+
+        @keyframes move-left {
+            to {
+                position: absolute;
+                left: -500px;
+            }
+
+            from {
+                position: absolute;
+                left: 0px;
+            }
+        }
         </style>
     </head>
 
     <body>
         <div class="side-boxes">
-            <div class="car1-wrapper">
-                <h2>Joe</h2><br>
-                <span id="current-speed1">0</span><span id="unit">cm/s</span>
+            <div class="" id="car1-wrapper">
+                <h2>Joe</h2>
+                <span id="current-speed1">N/A</span><span id="unit">cm/s</span>
                 <p>Current Speed</p><br>
             </div>
 
-            <div class="car2-wrapper">
-                <h2>Mama</h2><br>
-                <span id="current-speed2">0</span><span id="unit">cm/s</span>
+            <div class="" id="car2-wrapper">
+                <h2>Mama</h2>
+                <span id="current-speed2">N/A</span><span id="unit">cm/s</span>
                 <p>Current Speed</p><br>
+            </div>
+
+            <div class="" id="set-wrapper">
+                <h2>Set Speed</h2>
+                <span id="set-speed">0</span><span id="unit">cm/s</span>
+                <p>Set Speed</p><br>
             </div>
         </div>
 
@@ -496,11 +565,11 @@
                     <div id="chart"></div>
                 </div>
                 <div id="left-side">
-                    <input id="value-slider" orient="vertical" type="range" oninput="updateValue()" value="0" min="0" max="50">
+                    <input id="value-slider" orient="vertical" type="range" oninput="updateValue()" value="0" min="0" max="60">
                 </div>
                 <div>
                     <input id="disconnect-button" type="button" onclick="startDisconnect()" value="Disconnect">
-                    <input id="update-chart" type="button" onclick="build_chart()" value="Update">
+                    <input id="update-chart" type="button" onclick="build_chart()" value="Build Chart">
                 </div>
             </div>
         </div>
