@@ -3,11 +3,11 @@
 1. Arduino koden finns i SR/SR
 2. Webbsidan är mqttwebclientConnectToInternet.html
 
-Länken till webbsidan: 
+Länken till webbsidan(kan ej ansluta av en konstig anledning): https://s3.amazonaws.com/ottaiqam.com/mqttwebclientConnectToInternet.html
 
 # Hur fungerar webbsidan?
 ## Första slide
-![WebImage1](https://imgur.com/84aQAtl)
+![Web Image 1](https://imgur.com/84aQAtl)
 
 1. Username för MQTT
 2. Password
@@ -19,7 +19,7 @@ Länken till webbsidan:
 
 ## Andra Slide
 
-![WebImage2](https://imgur.com/AyxFsVX)
+![Web Image 2](https://imgur.com/AyxFsVX)
 
 1. Hastigheten för första bilen
 2. Hastigheten för andra bilen
